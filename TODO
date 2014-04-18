@@ -11,12 +11,17 @@
 ## language syntax:
 - [new, style, arrays]
 - [new => style, arrays=>like_this]
+- &reference var stuff
+- number literals
+- if: endif syntax
 
 # phplint features:
 
+- by default only complain about issues, don't try to fix them.
 - options to parser from command line.
 - colourful output
 - test suite
 - documentation
 - warnings about similar words & variables
 - including other files.
+- class and function names that don't match PSR standards.

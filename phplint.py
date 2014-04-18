@@ -21,7 +21,7 @@ VALID_LETTERS = 'abcdefghijklmnopqrstuvwxyz' \
 
 OPERATORS = ['.', '+', '-', '*', '/', '&', '^', '%', '|', '?', ':', '++', '--',
              '.=', '+=', '-=', '*=', '/=', '&&', '||', '==', '===', '=>', '->',
-             '::']
+             '::', '=', '!=', '<', '>', '<<', '>>']
 
 # step_back sort by length...
 OPERATORS.sort(lambda a, b: cmp(len(b), len(a)))
@@ -184,9 +184,18 @@ class PHPParser(Parser):  # pylint: disable=R0904
 
             elif self.next_chr_is('('):
                 output.append(self.expression())
+            elif self.next_chr_in('"\''):
+                output.append(self.string_literal())
+            elif self.next_chr_is('$'):
+                output.append(self.variable())
             elif self.next_chr_is(';'):
                 output.append(';')
                 output.append(self.expect_space())
+            elif self.next_chr_is(','):
+                output.append(',')
+                output.append(self.expect_space())
+            elif self.next_starts(*OPERATORS):
+                self.output_operator(output)
             else:
                 output.append(self.text[self.position])
 

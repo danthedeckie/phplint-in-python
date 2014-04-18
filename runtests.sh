@@ -4,6 +4,7 @@
 
 TESTDIR='testfiles'
 OUTPUTDIR="$TESTDIR/output"
+OUTPUT_LINES=1
 
 # init:
 
@@ -36,14 +37,21 @@ test_clean() {
 
     diff "$CLEANED" "$EXPECTED" > /dev/null
     if [[ $? -ne 0 ]]; then
+        echo "----------"
         echo "phplint did NOT give the expected output! ($1)"
-        colordiff -c1 "$CLEANED" "$EXPECTED"
-        exit 1
+        colordiff -c$OUTPUT_LINES "$CLEANED" "$EXPECTED"
+        echo "----------"
+        #exit 1
     fi
     
     echo "$1 passed."
 }
 
-test_clean htmlblock_within_function.php
-test_clean literals_test.php
-test_clean function_args.php
+if [[ -n "$1" ]]; then
+    OUTPUT_LINES=3 test_clean "$1"
+else
+    test_clean htmlblock_within_function.php
+    test_clean literals_test.php
+    test_clean function_args.php
+    test_clean blocks_without_brackets.php
+fi

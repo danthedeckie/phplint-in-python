@@ -5,17 +5,17 @@
 
     function x($y) {
         $thing = $y * $y;
-        printf('text %s',"more.");
+        printf('text %s', "more.");
         ;
         echo "te\| \"xt" . "more";
         ?> stuff... <?php
         ;
         echo 'te\| \"xt' . "other" . "and" . " stuff";
-        $x = 21 + (9+11/89) + 2;
+        $x = 21 + (9 + 11 / 89) + 2;
         $x -= 4;
         $x *= 21;
 
-        for($y=1; $y<42; $y++) {
+        for($y = 1; $y < 42; $y++) {
             echo $y;
         } // an inline comment x=$y.
 
