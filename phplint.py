@@ -7,13 +7,15 @@
     WORK IN PROGRESS.
 
 '''
+# I know how to use * and **
+# pylint: disable=W0142 
 
 from __future__ import print_function
 import sys
 
 # this could/should be expanded to full UTF-8 capacity:
 
-valid_letters = 'abcdefghijklmnopqrstuvwxyz' \
+VALID_LETTERS = 'abcdefghijklmnopqrstuvwxyz' \
                 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' \
                 '1234567890_'
 
@@ -22,15 +24,18 @@ OPERATORS = ['.', '+', '-', '*', '/', '&', '^', '%', '|', '?', ':', '++', '--',
              '::']
 
 # step_back sort by length...
-OPERATORS.sort(lambda a,b:cmp(len(b), len(a)))
+OPERATORS.sort(lambda a, b: cmp(len(b), len(a)))
 
 KEYWORD_BLOCK_THINGS = ['for', 'function', 'while', 'foreach', 'if', 'do',
                         'switch', 'class']
 
+
 class UnexpectedEndOfFile(Exception):
+    ''' End of file, but it should not be! '''
     pass
 
 ###############################################################3
+
 
 class Parser(object):
     ''' a generic parser object. '''
@@ -74,7 +79,7 @@ class Parser(object):
     def continue_chrs(self, count):
         ''' continue <count> number of characters '''
 
-        for i in xrange(count):
+        for _ in xrange(count):
             self.continue_1_chr()
 
     def next_chr_is(self, char):
@@ -89,7 +94,6 @@ class Parser(object):
 
         cur = self.text[self.position]
         return cur in chars
-        return any(cur == c for c in chars)
 
     def next_starts(self, *texts):
         ''' test if the next text to be read starts with this text,
@@ -110,13 +114,14 @@ class Parser(object):
             return False
 
     def warn(self, text, level=5):
+        ''' display a warning message (usually to stderr) '''
         if self.display_warnings:
             print ("Warning(%i) [%i:%i]:  %s" % (level, self.line_no,
                                                  self.chr_no, text),
                                                  file=sys.stderr)
 
 
-class PHPParser(Parser):
+class PHPParser(Parser):  # pylint: disable=R0904
     ''' a PHP specific Parser object '''
 
     def string_literal(self):
@@ -124,7 +129,7 @@ class PHPParser(Parser):
 
         initial_quote_mark = self.text[self.position]
         start_position = self.position
-        
+
         while self._not_at_end():
             if self.next_chr_is('\\'):
                 self.continue_1_chr()
@@ -134,7 +139,6 @@ class PHPParser(Parser):
     def multiline_comment(self):
         ''' read from /* to */ '''
 
-        initial_indent = self.chr_no
         start = self.position
 
         while self._not_at_end():
@@ -157,12 +161,11 @@ class PHPParser(Parser):
         ''' this will be for complex stuff like for loops, switches, etc, which
             take a keyword, a () expression (of sorts), and then a {} or single
             line terminated by a ; '''
-        return self.text[self.position] # TODO
+        return self.text[self.position]  # TODO
 
     def expression(self):
         ''' a section of code (inside brackets). nestable / recursive. '''
         output = ['(']
-        start = self.position
 
         if self.cleanup:
             # remove initial spaces:
@@ -190,11 +193,11 @@ class PHPParser(Parser):
     def variable(self):
         ''' read a $variable, add it to the variables list, and return it '''
         start = self.position
-        self.continue_1_chr() # advance past '$'
+        self.continue_1_chr()  # advance past '$'
 
         while self._not_at_end():
-            if not self.next_chr_in(valid_letters):
-                varname = self.text[start:self.position] 
+            if not self.next_chr_in(VALID_LETTERS):
+                varname = self.text[start:self.position]
                 if not varname in self.variables:
                     self.variables.append(varname)
                 self.step_back()
@@ -204,13 +207,12 @@ class PHPParser(Parser):
         ''' not a variable, but either a function, keyword, or constant. '''
         start = self.position
         while self._not_at_end():
-            if not self.next_chr_in(valid_letters):
+            if not self.next_chr_in(VALID_LETTERS):
                 self.step_back()
                 word = self.text[start:self.position + 1]
                 if not word in self.words:
                     self.words.append(word)
                 return word
-
 
     def inline_html(self):
         ''' from ?> until we're back in <?php land... '''
@@ -219,7 +221,7 @@ class PHPParser(Parser):
         while self._not_at_end():
             if self.next_starts('<?php'):
                 self.continue_chrs(4)
-                return self.text[start:self.position+1]
+                return self.text[start:self.position + 1]
         else:
             self.warn('End of file within PHP {} block!', 10)
 
@@ -227,14 +229,14 @@ class PHPParser(Parser):
         ''' we're at the end of a line, so make sure the new line
             is indented correctly. '''
 
-        blanklines = '\n' # initial newline...
+        blanklines = '\n'  # initial newline...
         start = self.position + 1
         linestart = start
 
         while self._not_at_end():
             if self.next_chr_is('\n'):
                 self.warn('extra newline!')
-                linestart = self.position+1
+                linestart = self.position + 1
                 blanklines += '\n'
                 continue
             if not self.next_chr_in(' \t'):
@@ -263,12 +265,12 @@ class PHPParser(Parser):
                 continue
             elif self.next_starts('?>'):
                 self.step_back()
-                return ' ' # space before end of php block...
+                return ' '  # space before end of php block...
             else:
                 self.step_back()
                 return '\n' + self.current_indent
 
-        return '' #end of file!
+        return ''  # end of file!
 
     def expect_space(self):
         ''' after operators, etc, we expect 1 space only. '''
@@ -277,7 +279,7 @@ class PHPParser(Parser):
         while self._not_at_end():
             if self.next_chr_is('\n'):
                 output.append('\n' + self.current_indent + self.indentation)
-                continue # TODO is that right???
+                continue  # TODO is that right???
             elif self.next_chr_is(' '):
                 continue
             else:
@@ -332,19 +334,19 @@ class PHPParser(Parser):
 
             output.append(self.expect_newline())
         else:
-            output.append(self.semicolon())
+            output.append(';')
 
     def output_comma(self, output):
         ''' after reading a comma, add it to the output list, also checking for
             spaces, formatting, etc. '''
 
-        if self.text[self.position-1] == ' ':
+        if self.text[self.position - 1] == ' ':
             self.warn('space before comma!')
 
         output.append(',')
 
-        if self.text[self.position+1] != ' ':
-            self.warn ('no space after comma')
+        if self.text[self.position + 1] != ' ':
+            self.warn('no space after comma')
 
         if self.cleanup:
             output.append(' ')
@@ -353,19 +355,19 @@ class PHPParser(Parser):
         ''' read an operator, add it to the output list, and check for spacing,
             etc. '''
 
-        op = self.next_starts(*OPERATORS)
+        operator = self.next_starts(*OPERATORS)
 
-        if op not in ('++', '--', '::', '->') \
-        and self.text[self.position-1] != ' ':
-            self.warn('no space before ' + op)
+        if operator not in ('++', '--', '::', '->') \
+        and self.text[self.position - 1] != ' ':
+            self.warn('no space before ' + operator)
 
             if self.cleanup:
                 output.append(' ')
 
-        output.append(op)
-        self.continue_chrs(len(op)-1)
+        output.append(operator)
+        self.continue_chrs(len(operator) - 1)
 
-        if op not in ('++', '--', '::', '->'):
+        if operator not in ('++', '--', '::', '->'):
             output.append(self.expect_space())
 
     def output_clean_endbrace(self, output):
@@ -384,11 +386,10 @@ class PHPParser(Parser):
         else:
             output.append(self.text[self.position])
 
-
     ####################################
     # the main parser functions:
 
-    def php_section(self, indent=0, indent_str=''):
+    def php_section(self, indent=0):  # pylint: disable=R0912
         '''
             parse / cleanup a php block. a block is either between
             '<?php ... ?>' anything inside {}.  inside a {}, '?>...<?php' is
@@ -407,7 +408,7 @@ class PHPParser(Parser):
 
             elif self.next_chr_in(' \t') and not len(output):
                 self.output_initial_space(output, indent)
-        
+
             elif self.next_chr_is('{'):
                 self.output_curlyblock(output, indent)
 
@@ -420,7 +421,7 @@ class PHPParser(Parser):
 
             elif self.next_chr_is('\n'):
                 output.append(self.line_indent(indent))
-    
+
             elif self.next_chr_is(','):
                 self.output_comma(output)
 
@@ -445,7 +446,7 @@ class PHPParser(Parser):
             #elif self.next_starts(*KEYWORD_BLOCK_THINGS):
             #    output.append(self.keyword_block())
 
-            elif self.next_chr_in(valid_letters):
+            elif self.next_chr_in(VALID_LETTERS):
                 output.append(self.word())
 
             else:
@@ -456,7 +457,6 @@ class PHPParser(Parser):
         except:
             print ('failed to join:', output)
             raise
-
 
     def parse(self, text):
         ''' the initial 'parse-a-php-file' function. Assumes that it is NOT
@@ -477,7 +477,7 @@ class PHPParser(Parser):
                 php_block = self.php_section()
 
                 output.append(php_block)
-                if self.position < len(self.text) -1:
+                if self.position < len(self.text) - 1:
                     output.append('?>')
             else:
                 try:
@@ -490,8 +490,9 @@ class PHPParser(Parser):
 
 
 def main(filename):
-    with open(filename, 'r') as fh:
-        input_text = fh.read()
+    ''' when phplint is used on the commandline '''
+    with open(filename, 'r') as input_file:
+        input_text = input_file.read()
 
     p = PHPParser()
     output_text = p.parse(input_text)
@@ -501,7 +502,6 @@ def main(filename):
 
 
 if __name__ == '__main__':
-    import sys
     if len(sys.argv) > 1:
         main(*sys.argv[1:])
     else:

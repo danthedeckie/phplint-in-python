@@ -2,9 +2,9 @@ This is a for-fun / for-education PHP linter / tester, written in Python.
 
 I got fed up with cleaning up PHP, trying to make it work nicely
 I want something like gofmt for PHP, and none of the other options
-out there seem quite production-ready yet.
+out there seemed to do quite what I wanted...
 
-Not that this one is, mind you.  You should treat the output of this with care and inspect
+Not that this one is, "production ready" mind you.  You should treat the output of this with care and inspect
 things manually afterwards.  Please send me any test cases that bring up errors!
 
 It's currently work in progress, somewhat messily written (sorry!), and still has a long way to go.
