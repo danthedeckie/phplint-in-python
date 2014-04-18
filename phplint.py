@@ -27,6 +27,9 @@ OPERATORS.sort(lambda a,b:cmp(len(b), len(a)))
 KEYWORD_BLOCK_THINGS = ['for', 'function', 'while', 'foreach', 'if', 'do',
                         'switch', 'class']
 
+class UnexpectedEndOfFile(Exception):
+    pass
+
 ###############################################################3
 
 class Parser(object):
@@ -100,7 +103,7 @@ class Parser(object):
         ''' used by parsing functions internally to continue one character
             at a time, and call the 'continue_1_chr' function. '''
 
-        if self.position < self.text_length:
+        if self.position < self.text_length - 1:
             self.continue_1_chr()
             return True
         else:
@@ -147,7 +150,8 @@ class PHPParser(Parser):
         while self._not_at_end():
             if self.next_chr_is('\n'):
                 self.step_back()
-                return self.text[start:self.position]
+                break
+        return self.text[start:self.position]
 
     def keyword_block(self):
         ''' this will be for complex stuff like for loops, switches, etc, which
@@ -243,6 +247,8 @@ class PHPParser(Parser):
 
                 self.step_back()
                 return blanklines + self.current_indent
+        # end of file
+        return blanklines
 
     def expect_newline(self):
         ''' after some things, we expect a new line! is that too much to
@@ -261,6 +267,8 @@ class PHPParser(Parser):
             else:
                 self.step_back()
                 return '\n' + self.current_indent
+
+        return '' #end of file!
 
     def expect_space(self):
         ''' after operators, etc, we expect 1 space only. '''
@@ -443,7 +451,11 @@ class PHPParser(Parser):
             else:
                 output.append(self.text[self.position])
 
-        return ''.join(output)
+        try:
+            return ''.join(output)
+        except:
+            print ('failed to join:', output)
+            raise
 
 
     def parse(self, text):
@@ -465,7 +477,8 @@ class PHPParser(Parser):
                 php_block = self.php_section()
 
                 output.append(php_block)
-                output.append('?>')
+                if self.position < len(self.text) -1:
+                    output.append('?>')
             else:
                 try:
                     output.append(self.text[self.position])
@@ -484,6 +497,7 @@ def main(filename):
     output_text = p.parse(input_text)
     print (output_text, end='')
     print ('Variables:', sorted(p.variables), file=sys.stderr)
+    print ('Words:', sorted(p.words), file=sys.stderr)
 
 
 if __name__ == '__main__':

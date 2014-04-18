@@ -1,0 +1,26 @@
+# bugs
+
+- <?phpif ... in omscroller.php
+
+# PHP features to add which behave in special ways:
+
+## Keyword blocks:
+- function
+- switch, case
+- if, else, elseif
+- do, loop, while, for, foreach
+- array(1,2,3)
+- array(a => b. c => d)
+
+## language syntax:
+- [new, style, arrays]
+- [new => style, arrays=>like_this]
+
+# phplint features:
+
+- options to parser from command line.
+- colourful output
+- test suite
+- documentation
+- warnings about similar words & variables
+- including other files.
