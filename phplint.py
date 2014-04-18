@@ -151,7 +151,7 @@ class PHPParser(Parser):
             if self.next_chr_is('\n'):
                 self.step_back()
                 break
-        return self.text[start:self.position]
+        return self.text[start:self.position + 1]
 
     def keyword_block(self):
         ''' this will be for complex stuff like for loops, switches, etc, which
@@ -213,13 +213,13 @@ class PHPParser(Parser):
 
 
     def inline_html(self):
-        ''' from ?> unti we're back in <?php land... '''
+        ''' from ?> until we're back in <?php land... '''
         start = self.position
 
         while self._not_at_end():
             if self.next_starts('<?php'):
-                self.continue_chrs(5)
-                return self.text[start:self.position]
+                self.continue_chrs(4)
+                return self.text[start:self.position+1]
         else:
             self.warn('End of file within PHP {} block!', 10)
 

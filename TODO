@@ -1,7 +1,3 @@
-# bugs
-
-- <?phpif ... in omscroller.php
-
 # PHP features to add which behave in special ways:
 
 ## Keyword blocks:
