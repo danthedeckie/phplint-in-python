@@ -353,8 +353,9 @@ class PHPParser(Parser):
             elif self.next_starts(*OPERATORS):
                 op = self.next_starts(*OPERATORS)
 
-                if op not in ('++', '--','::','->') and self.text[self.position-1] != ' ':
-                    self.warn ('no space before ' + op)
+                if op not in ('++', '--', '::', '->') \
+                and self.text[self.position-1] != ' ':
+                    self.warn('no space before ' + op)
 
                     if self.cleanup:
                         output.append(' ')
@@ -362,7 +363,7 @@ class PHPParser(Parser):
                 output.append(op)
                 self.continue_chrs(len(op)-1)
 
-                if op not in ('++', '--','::','->'):
+                if op not in ('++', '--', '::', '->'):
                     output.append(self.expect_space())
 
             elif self.next_chr_in(valid_letters):
@@ -370,18 +371,18 @@ class PHPParser(Parser):
                 while self._not_at_end():
                     if not self.next_chr_in(valid_letters):
                         self.step_back()
-                        output.append(self.text[start:self.position+1])
+                        output.append(self.text[start:self.position + 1])
                         break
 
             else:
                 output.append(self.text[self.position])
 
-        print('to join:%s', output)
-        return str(output)
         return ''.join(output)
 
 
     def parse(self, text):
+        ''' the initial 'parse-a-php-file' function. Assumes that it is NOT
+            starting inside a <?php block. '''
 
         self.text = text
         self.text_length = len(text)
