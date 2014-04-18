@@ -40,6 +40,7 @@ class Parser(object):
     current_indent = ''
     expected_indent_level = 0
     k_and_r_braces = True
+    indentation = '    '
 
     def __init__(self, warn=True, clean=True):
         ''' constructor '''
@@ -47,6 +48,7 @@ class Parser(object):
         self.display_warnings = warn
         self.cleanup = clean
         self.variables = []
+        self.words = []
 
     def continue_1_chr(self):
         ''' do this on every character, allows easy line and character
@@ -148,9 +150,13 @@ class PHPParser(Parser):
                 return self.text[start:self.position]
 
     def keyword_block(self):
+        ''' this will be for complex stuff like for loops, switches, etc, which
+            take a keyword, a () expression (of sorts), and then a {} or single
+            line terminated by a ; '''
         return self.text[self.position] # TODO
 
     def expression(self):
+        ''' a section of code (inside brackets). nestable / recursive. '''
         output = ['(']
         start = self.position
 
@@ -177,10 +183,8 @@ class PHPParser(Parser):
             else:
                 output.append(self.text[self.position])
 
-    def semicolon(self):
-        return ';'
-
     def variable(self):
+        ''' read a $variable, add it to the variables list, and return it '''
         start = self.position
         self.continue_1_chr() # advance past '$'
 
@@ -192,7 +196,20 @@ class PHPParser(Parser):
                 self.step_back()
                 return varname
 
+    def word(self):
+        ''' not a variable, but either a function, keyword, or constant. '''
+        start = self.position
+        while self._not_at_end():
+            if not self.next_chr_in(valid_letters):
+                self.step_back()
+                word = self.text[start:self.position + 1]
+                if not word in self.words:
+                    self.words.append(word)
+                return word
+
+
     def inline_html(self):
+        ''' from ?> unti we're back in <?php land... '''
         start = self.position
 
         while self._not_at_end():
@@ -203,10 +220,12 @@ class PHPParser(Parser):
             self.warn('End of file within PHP {} block!', 10)
 
     def line_indent(self, blocklevel=0):
-        blanklines = ''
-        if self.text[self.position] == '\n':
-            start = self.position + 1
-            linestart = start
+        ''' we're at the end of a line, so make sure the new line
+            is indented correctly. '''
+
+        blanklines = '\n' # initial newline...
+        start = self.position + 1
+        linestart = start
 
         while self._not_at_end():
             if self.next_chr_is('\n'):
@@ -249,7 +268,7 @@ class PHPParser(Parser):
 
         while self._not_at_end():
             if self.next_chr_is('\n'):
-                output.append('\n' + self.current_indent + '    ')
+                output.append('\n' + self.current_indent + self.indentation)
                 continue # TODO is that right???
             elif self.next_chr_is(' '):
                 continue
@@ -259,6 +278,107 @@ class PHPParser(Parser):
                 self.step_back()
                 output.append(' ')
                 return ''.join(output)
+
+    ####################################
+    # output_ functions: which take the current 'output' list and modify
+    #                    it directly, rather than simply parsing new stuff
+    #                    and returning it...
+
+    def output_curlyblock(self, output, indent):
+        ''' after reading a '{', add that and everything that follows into
+            the output list '''
+
+        if self.cleanup:
+            if len(output) and output[-1] != ' ':
+                output.append(' ')
+
+        output.append('{')
+
+        if self.cleanup:
+            old_indent = self.current_indent
+            self.current_indent += self.indentation
+            output.append(self.expect_newline())
+
+        output.append(self.php_section(indent + 1))
+
+        if self.cleanup:
+            self.current_indent = old_indent
+
+    def output_semicolon(self, output):
+        ''' after reading a ';', add that to the output, as well as tidying up
+            any newline / hanging spaces / etc. '''
+
+        if not len(output):
+            self.warn('semicolon at beginning of <?php section.')
+        else:
+            if output[-1] in ' \t':
+                self.warn('space before semicolon')
+            elif output[-1] in ';\n':
+                self.warn('semicolon without line of code!')
+
+        if self.cleanup:
+            while len(output) and output[-1] in '; \t\n':
+                output.pop()
+            if len(output):
+                output.append(';')
+
+            output.append(self.expect_newline())
+        else:
+            output.append(self.semicolon())
+
+    def output_comma(self, output):
+        ''' after reading a comma, add it to the output list, also checking for
+            spaces, formatting, etc. '''
+
+        if self.text[self.position-1] == ' ':
+            self.warn('space before comma!')
+
+        output.append(',')
+
+        if self.text[self.position+1] != ' ':
+            self.warn ('no space after comma')
+
+        if self.cleanup:
+            output.append(' ')
+
+    def output_operator(self, output):
+        ''' read an operator, add it to the output list, and check for spacing,
+            etc. '''
+
+        op = self.next_starts(*OPERATORS)
+
+        if op not in ('++', '--', '::', '->') \
+        and self.text[self.position-1] != ' ':
+            self.warn('no space before ' + op)
+
+            if self.cleanup:
+                output.append(' ')
+
+        output.append(op)
+        self.continue_chrs(len(op)-1)
+
+        if op not in ('++', '--', '::', '->'):
+            output.append(self.expect_space())
+
+    def output_clean_endbrace(self, output):
+        ''' add the final } to a braced section, correcting the spacing. '''
+
+        if self.cleanup and output and self.k_and_r_braces:
+            if output[-1].endswith(self.indentation):
+                output[-1] = output[-1][0:-4]
+        output.append('}')
+
+    def output_initial_space(self, output, indent):
+        ''' when starting a braced section, ensure spacing is sane. '''
+        if indent:
+            self.step_back()
+            output.append(self.expect_newline())
+        else:
+            output.append(self.text[self.position])
+
+
+    ####################################
+    # the main parser functions:
 
     def php_section(self, indent=0, indent_str=''):
         '''
@@ -276,17 +396,27 @@ class PHPParser(Parser):
                     return ''.join(output)
                 else:
                     output.append(self.inline_html())
-            elif self.next_chr_is('\n'):
-                output.append('\n')
-                output.append(self.line_indent(indent))
-            elif self.next_chr_in(' \t') and not len(output):
-                if indent:
-                    self.step_back()
-                    output.append(self.expect_newline())
-                else:
-                    output.append(self.text[self.position])
-            elif self.next_chr_in('"\''):
 
+            elif self.next_chr_in(' \t') and not len(output):
+                self.output_initial_space(output, indent)
+        
+            elif self.next_chr_is('{'):
+                self.output_curlyblock(output, indent)
+
+            elif self.next_chr_is('}'):
+                self.output_clean_endbrace(output)
+                return ''.join(output)
+
+            elif self.next_chr_is(';'):
+                self.output_semicolon(output)
+
+            elif self.next_chr_is('\n'):
+                output.append(self.line_indent(indent))
+    
+            elif self.next_chr_is(','):
+                self.output_comma(output)
+
+            elif self.next_chr_in('"\''):
                 output.append(self.string_literal())
 
             elif self.next_starts('/*'):
@@ -294,85 +424,21 @@ class PHPParser(Parser):
 
             elif self.next_starts('//'):
                 output.append(self.inline_comment())
-            elif self.next_chr_is('$'):
-                output.append(self.variable())
-            elif self.next_chr_is('('):
-                output.append(self.expression())
-            #elif self.next_starts(*KEYWORD_BLOCK_THINGS):
-            #    output.append(self.keyword_block())
-            elif self.next_chr_is('{'):
-                output.append('{')
-                if self.cleanup:
-                    old_indent = self.current_indent
-                    self.current_indent += '    '
-                    output.append(self.expect_newline())
-
-                output.append(self.php_section(indent + 1))
-
-                if self.cleanup:
-                    self.current_indent = old_indent
-
-            elif self.next_chr_is('}'):
-                if self.cleanup and output and self.k_and_r_braces:
-                    if output[-1].endswith('    '):
-                        output[-1] = output[-1][0:-4]
-                output.append('}')
-                return ''.join(output)
-            elif self.next_chr_is(';'):
-                if not len(output):
-                    self.warn('semicolon at beginning of <?php section.')
-                else:
-                    if output[-1] in ' \t':
-                        self.warn('space before semicolon')
-                    elif output[-1] in ';\n':
-                        self.warn('semicolon without line of code!')
-
-                if self.cleanup:
-                    while len(output) and output[-1] in '; \t\n':
-                        output.pop()
-                    if len(output):
-                        output.append(';')
-
-                    output.append(self.expect_newline())
-                else:
-                    output.append(self.semicolon())
-
-
-            elif self.next_chr_is(','):
-                if self.text[self.position-1] == ' ':
-                    self.warn('space before comma!')
-
-                output.append(',')
-
-                if self.text[self.position+1] != ' ':
-                    self.warn ('no space after comma')
-
-                if self.cleanup:
-                    output.append(' ')
 
             elif self.next_starts(*OPERATORS):
-                op = self.next_starts(*OPERATORS)
+                self.output_operator(output)
 
-                if op not in ('++', '--', '::', '->') \
-                and self.text[self.position-1] != ' ':
-                    self.warn('no space before ' + op)
+            elif self.next_chr_is('$'):
+                output.append(self.variable())
 
-                    if self.cleanup:
-                        output.append(' ')
+            elif self.next_chr_is('('):
+                output.append(self.expression())
 
-                output.append(op)
-                self.continue_chrs(len(op)-1)
-
-                if op not in ('++', '--', '::', '->'):
-                    output.append(self.expect_space())
+            #elif self.next_starts(*KEYWORD_BLOCK_THINGS):
+            #    output.append(self.keyword_block())
 
             elif self.next_chr_in(valid_letters):
-                start = self.position
-                while self._not_at_end():
-                    if not self.next_chr_in(valid_letters):
-                        self.step_back()
-                        output.append(self.text[start:self.position + 1])
-                        break
+                output.append(self.word())
 
             else:
                 output.append(self.text[self.position])
