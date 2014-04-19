@@ -58,29 +58,24 @@ class Parser(object):
         self.variables = []
         self.words = []
 
-    def continue_1_chr(self):
-        ''' do this on every character, allows easy line and character
-            counting. '''
-
-        if self.position < self.text_length:
-            self.position += 1
-
-        if self.next_chr_is('\n'):
-            self.line_no += 1
-            self.chr_no = 0
-        else:
-            self.chr_no += 1
-
     def step_back(self, count=1):
         ''' go back <count> characters '''
         self.position -= count
         self.chr_no -= count
 
-    def continue_chrs(self, count):
+    def step_forward(self, count=1):
         ''' continue <count> number of characters '''
 
         for _ in xrange(count):
-            self.continue_1_chr()
+            if self.position < self.text_length:
+                self.position += 1
+
+            if self.next_chr_is('\n'):
+                self.line_no += 1
+                self.chr_no = 0
+            else:
+                self.chr_no += 1
+
 
     def next_chr_is(self, char):
         ''' test if the next character to be parsed is char '''
@@ -105,10 +100,10 @@ class Parser(object):
 
     def _not_at_end(self):
         ''' used by parsing functions internally to continue one character
-            at a time, and call the 'continue_1_chr' function. '''
+            at a time, and call the 'step_forward' function. '''
 
         if self.position < self.text_length - 1:
-            self.continue_1_chr()
+            self.step_forward()
             return True
         else:
             return False
@@ -132,7 +127,7 @@ class PHPParser(Parser):  # pylint: disable=R0904
 
         while self._not_at_end():
             if self.next_chr_is('\\'):
-                self.continue_1_chr()
+                self.step_forward()
             elif self.next_chr_is(initial_quote_mark):
                 return self.text[start_position:self.position + 1]
 
@@ -143,7 +138,7 @@ class PHPParser(Parser):  # pylint: disable=R0904
 
         while self._not_at_end():
             if self.next_starts('*/'):
-                self.continue_1_chr()
+                self.step_forward()
                 return self.text[start:self.position + 1]
 
     def inline_comment(self):
@@ -156,12 +151,6 @@ class PHPParser(Parser):  # pylint: disable=R0904
                 self.step_back()
                 break
         return self.text[start:self.position + 1]
-
-    def keyword_block(self):
-        ''' this will be for complex stuff like for loops, switches, etc, which
-            take a keyword, a () expression (of sorts), and then a {} or single
-            line terminated by a ; '''
-        return self.text[self.position]  # TODO
 
     def expression(self):
         ''' a section of code (inside brackets). nestable / recursive. '''
@@ -202,7 +191,7 @@ class PHPParser(Parser):  # pylint: disable=R0904
     def variable(self):
         ''' read a $variable, add it to the variables list, and return it '''
         start = self.position
-        self.continue_1_chr()  # advance past '$'
+        self.step_forward()  # advance past '$'
 
         while self._not_at_end():
             if not self.next_chr_in(VALID_LETTERS):
@@ -229,7 +218,7 @@ class PHPParser(Parser):  # pylint: disable=R0904
 
         while self._not_at_end():
             if self.next_starts('<?php'):
-                self.continue_chrs(4)
+                self.step_forward(4)
                 return self.text[start:self.position + 1]
         else:
             self.warn('End of file within PHP {} block!', 10)
@@ -374,7 +363,7 @@ class PHPParser(Parser):  # pylint: disable=R0904
                 output.append(' ')
 
         output.append(operator)
-        self.continue_chrs(len(operator) - 1)
+        self.step_forward(len(operator) - 1)
 
         if operator not in ('++', '--', '::', '->'):
             output.append(self.expect_space())
@@ -395,6 +384,17 @@ class PHPParser(Parser):  # pylint: disable=R0904
         else:
             output.append(self.text[self.position])
 
+    def output_keyword_block(self, output):
+        ''' this will be for complex stuff like for loops, switches, etc, which
+            take a keyword, a () expression (of sorts), and then a {} or single
+            line terminated by a ; '''
+        keyword = self.next_starts(*KEYWORD_BLOCK_THINGS)
+        output.append(keyword)
+        self.step_forward(len(keyword) - 1)
+
+        #while self._not_at_end():
+        return True
+
     ####################################
     # the main parser functions:
 
@@ -410,7 +410,7 @@ class PHPParser(Parser):  # pylint: disable=R0904
         while self._not_at_end():
             if self.next_starts('?>'):
                 if not indent:
-                    self.continue_1_chr()
+                    self.step_forward()
                     return ''.join(output)
                 else:
                     output.append(self.inline_html())
@@ -452,8 +452,8 @@ class PHPParser(Parser):  # pylint: disable=R0904
             elif self.next_chr_is('('):
                 output.append(self.expression())
 
-            #elif self.next_starts(*KEYWORD_BLOCK_THINGS):
-            #    output.append(self.keyword_block())
+            elif self.next_starts(*KEYWORD_BLOCK_THINGS):
+                self.output_keyword_block(output)
 
             elif self.next_chr_in(VALID_LETTERS):
                 output.append(self.word())
@@ -479,7 +479,7 @@ class PHPParser(Parser):  # pylint: disable=R0904
 
         while self._not_at_end():
             if self.next_starts('<?php'):
-                self.continue_chrs(4)
+                self.step_forward(4)
 
                 output.append('<?php')
 

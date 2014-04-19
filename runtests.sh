@@ -42,9 +42,9 @@ test_clean() {
         colordiff -c$OUTPUT_LINES "$CLEANED" "$EXPECTED"
         echo "----------"
         #exit 1
+    else 
+        echo "$1 passed."
     fi
-    
-    echo "$1 passed."
 }
 
 if [[ -n "$1" ]]; then
