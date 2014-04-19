@@ -15,7 +15,7 @@
         $x -= 4;
         $x *= 21;
 
-        for($y = 1; $y < 42; $y++) {
+        for ($y = 1; $y < 42; $y++) {
             echo $y;
         } // an inline comment x=$y.
 
@@ -25,7 +25,7 @@
 
     }
 
- while(1 === OTHER) {
+ while (1 === OTHER) {
      x();
      x();
      x();

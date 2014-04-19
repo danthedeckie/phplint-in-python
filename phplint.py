@@ -1,10 +1,22 @@
 #!/usr/bin/python
 '''
-    phplint.py - (C) 2014 Daniel Fairhead
-    GPL3.0 licenced
+    phplint.py - Copyright (C) 2014 Daniel Fairhead
     -------------------------------------
     a simple php linter/formatter in python.
     WORK IN PROGRESS.
+    -------------------------------------
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 '''
 # I know how to use * and **
@@ -26,12 +38,20 @@ OPERATORS = ['.', '+', '-', '*', '/', '&', '^', '%', '|', '?', ':', '++', '--',
 # step_back sort by length...
 OPERATORS.sort(lambda a, b: cmp(len(b), len(a)))
 
-KEYWORD_BLOCK_THINGS = ['for', 'function', 'while', 'foreach', 'if', 'do',
-                        'switch', 'class']
+KEYWORD_BLOCK_THINGS = ['for', 'while', 'foreach', 'if', 'do', 'switch']
 
+# TODO: also class, and function.
 
-class UnexpectedEndOfFile(Exception):
+class ParseError(Exception):
+    ''' Generic Error '''
+    pass
+
+class UnexpectedEndOfFile(ParseError):
     ''' End of file, but it should not be! '''
+    pass
+
+class PHPError(ParseError):
+    ''' Invalid PHP, for some reason. '''
     pass
 
 ###############################################################3
@@ -270,21 +290,32 @@ class PHPParser(Parser):  # pylint: disable=R0904
 
         return ''  # end of file!
 
-    def expect_space(self):
+    def expect_space(self, strip_newlines=False):
         ''' after operators, etc, we expect 1 space only. '''
         output = []
 
         while self._not_at_end():
             if self.next_chr_is('\n'):
-                output.append('\n' + self.current_indent + self.indentation)
-                continue  # TODO is that right???
+                if not strip_newlines:
+                    output.append('\n' + self.current_indent + self.indentation)
+                    # TODO: is that right???
+
             elif self.next_chr_is(' '):
-                continue
+                if not output or not self.cleanup:
+                    output.append(' ')
+            elif self.next_chr_is('\t'):
+                self.warn("expected ' ', got TAB")
+                if self.cleanup:
+                    output.append(' ')
+                else:
+                    output.append('\t')
             else:
                 if not output:
                     self.warn('expected space!')
+                    if self.cleanup:
+                        output.append(' ')
+
                 self.step_back()
-                output.append(' ')
                 return ''.join(output)
 
     ####################################
@@ -392,13 +423,40 @@ class PHPParser(Parser):  # pylint: disable=R0904
         output.append(keyword)
         self.step_forward(len(keyword) - 1)
 
+        output.append(self.expect_space())
+        self.step_forward()
+
+        if self.text[self.position] != '(':
+            raise PHPError('Expection (expression) after ' + keyword)
+
+        output.append(self.expression())
+
+        output.append(self.expect_space(strip_newlines=True)) # TODO: add "no_newlines" option...
+        self.step_forward()
+
+        if self.text[self.position] != '{':
+            self.warn(keyword + ' without {braced} section!')
+            self.step_back()
+            output.append('{')
+            output.append('\n' + self.current_indent + self.indentation)
+            output.append(self.statement())
+            output.append('\n' + self.current_indent + '}')
+        else:
+            self.step_back() # and let the normal php_section handle it.
+
+
         #while self._not_at_end():
         return True
+
+    def statement(self):
+        ''' read one PHP statement (semicolon terminated...) '''
+        return self.php_section(0, end_at_semicolon=True)
+
 
     ####################################
     # the main parser functions:
 
-    def php_section(self, indent=0):  # pylint: disable=R0912
+    def php_section(self, indent=0, end_at_semicolon=False):  # pylint: disable=R0912
         '''
             parse / cleanup a php block. a block is either between
             '<?php ... ?>' anything inside {}.  inside a {}, '?>...<?php' is
@@ -427,6 +485,8 @@ class PHPParser(Parser):  # pylint: disable=R0904
 
             elif self.next_chr_is(';'):
                 self.output_semicolon(output)
+                if end_at_semicolon:
+                    break
 
             elif self.next_chr_is('\n'):
                 output.append(self.line_indent(indent))
@@ -502,12 +562,20 @@ def main(filename):
     ''' when phplint is used on the commandline '''
     with open(filename, 'r') as input_file:
         input_text = input_file.read()
+        output_text = input_text
 
     p = PHPParser()
-    output_text = p.parse(input_text)
-    print (output_text, end='')
-    print ('Variables:', sorted(p.variables), file=sys.stderr)
-    print ('Words:', sorted(p.words), file=sys.stderr)
+    try:
+        output_text = p.parse(input_text)
+    except ParseError as excp:
+        print('Err:', excp, file=sys.stderr)
+        print('---------\n' +
+              input_text[0:p.position + 1] + 
+              "<-------- there!\n", file=sys.stderr)
+
+    print(output_text, end='')
+    print('Variables:', sorted(p.variables), file=sys.stderr)
+    print('Words:', sorted(p.words), file=sys.stderr)
 
 
 if __name__ == '__main__':

@@ -39,6 +39,7 @@ test_clean() {
     if [[ $? -ne 0 ]]; then
         echo "----------"
         echo "phplint did NOT give the expected output! ($1)"
+        cat "$WARNINGFILE"
         colordiff -c$OUTPUT_LINES "$CLEANED" "$EXPECTED"
         echo "----------"
         #exit 1

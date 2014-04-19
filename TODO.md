@@ -1,10 +1,10 @@
 # PHP features to add which behave in special ways:
 
 ## Keyword blocks:
-- function
+- function, including 'using'.
 - switch, case
-- if, else, elseif
-- do, loop, while, for, foreach
+- if, else, elseif *wip*
+- do, loop, while, for, foreach *wip*
 - array(1,2,3)
 - array(a => b. c => d)
 
@@ -14,6 +14,7 @@
 - &reference var stuff
 - number literals
 - if: endif syntax
+- namespaces
 
 # phplint features:
 
@@ -21,7 +22,15 @@
 - options to parser from command line.
 - colourful output
 - test suite
+  - more tests
+  - automatically finding new tests
+  - php-fail tests
+  - internal function tests, as well as the current output tests
+  - non-cleaning tests (make sure it doesn't change *anything*!)
 - documentation
 - warnings about similar words & variables
 - including other files.
 - class and function names that don't match PSR standards.
+- 'too much indentation' warning.
+- total score (as pylint does).
+- vim/emacs/etc quickfix window style output
