@@ -25,15 +25,15 @@
 
     }
 
- while (1 === OTHER) {
-     x();
-     x();
-     x();
-     x();
- }
+    while (1 === OTHER) {
+        x();
+        x();
+        x();
+        x();
+    }
 
-$X = Thing::stuff($value);
-$X->stuff($value);
+    $X = Thing::stuff($value);
+    $X->stuff($value);
 
 
-?> and more <?php echo x(21); ?> stuff...
+    ?> and more <?php echo x(21); ?> stuff...

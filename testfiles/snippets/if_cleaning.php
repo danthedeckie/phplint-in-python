@@ -71,6 +71,25 @@ if, else if, elseif, else non-bracketed next-line
     }
 ?>
 ====
+other indent test
+----
+<?php
+function x () {
+    if ($t < 21)
+        echo "a";
+        echo "b";
+}
+?>
+----
+<?php
+function x () {
+    if ($t < 21) {
+        echo "a";
+    }
+    echo "b";
+}
+?>
+====
 if non-bracketed next-line with usual bug...
 ----
 <?php

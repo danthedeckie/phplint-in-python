@@ -56,5 +56,5 @@ for testcase in tests:
         print (WARNING % (before, expected, output))
         exit(1)
     else:
-        print '.'
+        sys.stdout.write('.')
 
