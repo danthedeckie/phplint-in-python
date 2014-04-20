@@ -5,5 +5,5 @@ function potato($a,$b="stuff", $c){
 }
 
 $x = array("potato"=> "spud",
-           "fries"=>"chips",
-           "chips" =>"crisps");
+          "fries"=>"chips",
+               "chips" =>"crisps");

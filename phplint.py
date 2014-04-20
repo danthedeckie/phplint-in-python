@@ -218,6 +218,13 @@ class PHPParser(Parser):  # pylint: disable=R0904
         ''' a section of code (inside brackets). nestable / recursive. '''
         output = ['(']
 
+        # set indentation level to where this expression opens.
+        if self.cleanup:
+            previous_indent = self.current_indent
+            previous_indentaton = self.indentation
+            self.current_indent = self.chr_no * ' '
+            self.indentation = ''
+
         if self.cleanup:
             # remove initial spaces:
             while self._not_at_end():
@@ -230,9 +237,13 @@ class PHPParser(Parser):  # pylint: disable=R0904
                 if self.cleanup:
                     while output[-1] in ' \t':
                         output.pop()
+                    self.current_indent = previous_indent
+                    self.indentation = previous_indentaton
                 output.append(')')
                 return ''.join(output)
 
+            elif self.next_chr_is('\n'):
+                output.append('\n')
             elif self.next_chr_is('('):
                 output.append(self.expression())
             elif self.next_chr_in('"\''):
@@ -641,7 +652,7 @@ def main(filename):
     except ParseError as excp:
         print('Err:', excp, file=sys.stderr)
         print('---------\n' +
-              input_text[0:p.position + 1] + 
+              input_text[0:p.position + 1] +
               "<-------- there!\n", file=sys.stderr)
 
     print(output_text, end='')
