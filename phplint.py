@@ -478,6 +478,10 @@ class PHPParser(Parser):  # pylint: disable=R0904
         else:
             output.append(self.text[self.position])
 
+    def statement(self):
+        ''' read one PHP statement (semicolon terminated...) '''
+        return self.php_section(0, end_at_semicolon=True)
+
     def output_curly_or_statement(self, output, indent, keyword=''):
         ''' either output { until }, or wrap the next ; terminated statement
             inside it's own new { pair of braces } '''
@@ -527,10 +531,24 @@ class PHPParser(Parser):  # pylint: disable=R0904
 
         return True
 
-    def statement(self):
-        ''' read one PHP statement (semicolon terminated...) '''
-        return self.php_section(0, end_at_semicolon=True)
+    def output_function_block(self, output, indent):
+        ''' parse and output a function ... block. '''
+        output.append('function')
+        self.step_forward(7)  # to the end of 'function'
 
+        output.append(self.expect_space(strip_newlines=True))
+        self.step_forward()
+
+        if self.next_chr_is('('):
+            # anonymous function!
+            output.append(self.expression())
+            output.append(self.expect_space(strip_newlines=True))
+            self.step_forward()
+        else:
+            # named function
+            output.append(self.word)
+            # TODO: now can be followed by 'using', or block....
+            output.append(self.expect_space(strip_newlines=True))
 
     ####################################
     # the main parser functions:
@@ -618,6 +636,9 @@ class PHPParser(Parser):  # pylint: disable=R0904
         self.text = text
         self.text_length = len(text)
         self.position = -1
+        self.line_no = 1
+        self.chr_no = 0
+
 
         output = []
 

@@ -53,7 +53,13 @@ if [[ -n "$1" ]]; then
     OUTPUT_LINES=3 test_clean "$1"
 else
     echo "Testing snippets"
-    find "$SNIPPETS" -name '*.php'| xargs -t python "$SNIPPETS/test_snippets.py" || exit 2
+    for SNIP in $(find "$SNIPPETS" -name '*.php' -print); do
+        python "$SNIPPETS/test_snippets.py" "$SNIP"
+        if [[ $? -ne 0 ]]; then
+            echo "in $SNIP"
+            exit 2
+        fi
+    done
 
     test_clean htmlblock_within_function.php
     test_clean literals_test.php

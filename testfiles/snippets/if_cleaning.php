@@ -104,3 +104,21 @@ if non-bracketed next-line with usual bug...
     }
     turn_on_heating();
 ?>
+====
+bracketed, but "wrong"
+----
+<?php
+  if ($x == $y)
+  {
+      echo $x;
+      } else
+      echo "$y";
+    ?>
+----
+<?php
+  if ($x == $y) {
+      echo $x;
+  } else {
+      echo "$y";
+  }
+?>
