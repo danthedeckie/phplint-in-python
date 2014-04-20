@@ -1,12 +1,12 @@
 # PHP features to add which behave in special ways:
 
 ## Keyword blocks:
-- function, including 'using'.
+- function, including 'using'. - currently will fail with function names "for..." or starting with other reserved words.
 - switch, case
-- if, else, elseif *wip*
+- if, else, elseif - Needs more unit tests, but otherwise looks good!
 - do, loop, while, for, foreach *wip*
 - array(1,2,3)
-- array(a => b. c => d)
+- array(a => b. c => d) - looks good, needs tests
 
 ## language syntax:
 - [new, style, arrays]

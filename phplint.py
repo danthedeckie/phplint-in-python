@@ -35,11 +35,13 @@ OPERATORS = ['.', '+', '-', '*', '/', '&', '^', '%', '|', '?', ':', '++', '--',
              '.=', '+=', '-=', '*=', '/=', '&&', '||', '==', '===', '=>', '->',
              '::', '=', '!=', '<', '>', '<<', '>>']
 
-# step_back sort by length...
-OPERATORS.sort(lambda a, b: cmp(len(b), len(a)))
-
 KEYWORD_BLOCK_THINGS = ['for', 'while', 'foreach', 'if', 'do', 'switch',
                         'else if', 'elseif', 'else']
+
+# step_back sort by length...
+OPERATORS.sort(lambda a, b: cmp(len(b), len(a)))
+KEYWORD_BLOCK_THINGS.sort(lambda a, b: cmp(len(b), len(a)))
+
 
 # TODO: also class, and function.
 
