@@ -8,8 +8,7 @@ while ($up != "down") {
     printf("I can fly!");
 }
 
-function yellow()
-{
+function yellow() {
     if (11 == 12) {
         return "passionfruit";
     }
@@ -32,3 +31,13 @@ if (yellow()) {
 } else {
     echo "not great";
 }
+
+if (yellow()) {
+    echo "another line.";
+}
+
+if (yellow()) {
+    echo "only yellow";
+}
+echo "not this";
+

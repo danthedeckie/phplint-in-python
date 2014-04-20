@@ -5,7 +5,7 @@ if (True === False) echo "we're in trouble.";
 while($up != "down")
     printf("I can fly!");
 
-function yellow(){
+function yellow(){ 
     if(11== 12)     return "passionfruit";
 
     while (True)
@@ -18,3 +18,13 @@ else echo "not great";
 if (yellow()) echo "great";
 elseif (False) echo "insane.";
 else echo "not great";
+
+if (yellow())
+{
+echo "another line.";
+    }
+
+if (yellow())
+    echo "only yellow";
+    echo "not this";
+

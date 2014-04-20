@@ -38,7 +38,8 @@ OPERATORS = ['.', '+', '-', '*', '/', '&', '^', '%', '|', '?', ':', '++', '--',
 # step_back sort by length...
 OPERATORS.sort(lambda a, b: cmp(len(b), len(a)))
 
-KEYWORD_BLOCK_THINGS = ['for', 'while', 'foreach', 'if', 'do', 'switch']
+KEYWORD_BLOCK_THINGS = ['for', 'while', 'foreach', 'if', 'do', 'switch',
+                        'else if', 'elseif', 'else']
 
 # TODO: also class, and function.
 
@@ -52,6 +53,11 @@ class UnexpectedEndOfFile(ParseError):
 
 class PHPError(ParseError):
     ''' Invalid PHP, for some reason. '''
+    pass
+
+class RollBack(Exception):
+    ''' this parse-attempt isn't working.
+    Please roll back to whereever you were. '''
     pass
 
 ###############################################################3
@@ -135,6 +141,32 @@ class Parser(object):
                                                  self.chr_no, text),
                                                  file=sys.stderr)
 
+    def rollback(self, output):
+        ''' return a 'with block' object which can be used to roll back from
+            attempted parsing. If a parse attempt fails, you should
+            raise RollBack. '''
+        output_len = len(output)
+        position = self.position
+        line_no = self.line_no
+        chr_no = self.chr_no
+
+        parser = self
+        output_list = output
+
+        class Roller(object):
+            def __enter__(self):
+                pass
+            def __exit__(self, excptype, value, traceback):
+                if excptype == RollBack:
+                    while len(output_list) > output_len:
+                        output_list.pop()
+                    parser.position = position
+                    parser.line_no = line_no
+                    parser.chr_no = chr_no
+                    return True
+
+        return Roller()
+
 
 class PHPParser(Parser):  # pylint: disable=R0904
     ''' a PHP specific Parser object '''
@@ -151,6 +183,8 @@ class PHPParser(Parser):  # pylint: disable=R0904
             elif self.next_chr_is(initial_quote_mark):
                 return self.text[start_position:self.position + 1]
 
+        raise UnexpectedEndOfFile('end of file inside string literal!')
+
     def multiline_comment(self):
         ''' read from /* to */ '''
 
@@ -160,6 +194,8 @@ class PHPParser(Parser):  # pylint: disable=R0904
             if self.next_starts('*/'):
                 self.step_forward()
                 return self.text[start:self.position + 1]
+
+        raise UnexpectedEndOfFile('end of file inside /* multi-line comment */')
 
     def inline_comment(self):
         ''' from // to the end of line. '''
@@ -208,6 +244,8 @@ class PHPParser(Parser):  # pylint: disable=R0904
             else:
                 output.append(self.text[self.position])
 
+        raise UnexpectedEndOfFile('end of file inside (expression)')
+
     def variable(self):
         ''' read a $variable, add it to the variables list, and return it '''
         start = self.position
@@ -221,6 +259,8 @@ class PHPParser(Parser):  # pylint: disable=R0904
                 self.step_back()
                 return varname
 
+        raise UnexpectedEndOfFile('end of file inside variable name!')
+
     def word(self):
         ''' not a variable, but either a function, keyword, or constant. '''
         start = self.position
@@ -232,6 +272,8 @@ class PHPParser(Parser):  # pylint: disable=R0904
                     self.words.append(word)
                 return word
 
+        raise UnexpectedEndOfFile('end of file inside word.')
+
     def inline_html(self):
         ''' from ?> until we're back in <?php land... '''
         start = self.position
@@ -240,8 +282,8 @@ class PHPParser(Parser):  # pylint: disable=R0904
             if self.next_starts('<?php'):
                 self.step_forward(4)
                 return self.text[start:self.position + 1]
-        else:
-            self.warn('End of file within PHP {} block!', 10)
+
+        raise UnexpectedEndOfFile ('End of file within PHP {} block!')
 
     def line_indent(self, blocklevel=0):
         ''' we're at the end of a line, so make sure the new line
@@ -317,6 +359,8 @@ class PHPParser(Parser):  # pylint: disable=R0904
 
                 self.step_back()
                 return ''.join(output)
+
+        return '' # end of file
 
     ####################################
     # output_ functions: which take the current 'output' list and modify
@@ -415,7 +459,21 @@ class PHPParser(Parser):  # pylint: disable=R0904
         else:
             output.append(self.text[self.position])
 
-    def output_keyword_block(self, output):
+    def output_curly_or_statement(self, output, indent, keyword=''):
+        ''' either output { until }, or wrap the next ; terminated statement
+            inside it's own new { pair of braces } '''
+
+        if self.text[self.position] != '{':
+            self.warn(keyword + ' without {braced} section!')
+            self.step_back()
+            output.append('{')
+            output.append('\n' + self.current_indent + self.indentation)
+            output.append(self.statement())
+            output.append('\n' + self.current_indent + '}')
+        else:
+            self.output_curlyblock(output, indent)
+
+    def output_keyword_block(self, output, indent):
         ''' this will be for complex stuff like for loops, switches, etc, which
             take a keyword, a () expression (of sorts), and then a {} or single
             line terminated by a ; '''
@@ -426,26 +484,28 @@ class PHPParser(Parser):  # pylint: disable=R0904
         output.append(self.expect_space())
         self.step_forward()
 
-        if self.text[self.position] != '(':
-            raise PHPError('Expection (expression) after ' + keyword)
+        if keyword != 'else':
+            if self.text[self.position] != '(':
+                raise PHPError('Expection (expression) after ' + keyword)
 
-        output.append(self.expression())
+            output.append(self.expression())
 
-        output.append(self.expect_space(strip_newlines=True)) # TODO: add "no_newlines" option...
-        self.step_forward()
+            output.append(self.expect_space(strip_newlines=True))
+            self.step_forward()
 
-        if self.text[self.position] != '{':
-            self.warn(keyword + ' without {braced} section!')
-            self.step_back()
-            output.append('{')
-            output.append('\n' + self.current_indent + self.indentation)
-            output.append(self.statement())
-            output.append('\n' + self.current_indent + '}')
-        else:
-            self.step_back() # and let the normal php_section handle it.
+        self.output_curly_or_statement(output, indent, keyword)
 
+        if keyword in ('if', 'else if', 'elseif'):
+            with self.rollback(output):
+                output.append(self.expect_space(strip_newlines=True))
+                self.step_forward()
 
-        #while self._not_at_end():
+                next_key = self.next_starts('elseif', 'else')
+                if next_key:
+                    self.output_keyword_block(output, indent)
+                else:
+                    raise RollBack()
+
         return True
 
     def statement(self):
@@ -513,7 +573,7 @@ class PHPParser(Parser):  # pylint: disable=R0904
                 output.append(self.expression())
 
             elif self.next_starts(*KEYWORD_BLOCK_THINGS):
-                self.output_keyword_block(output)
+                self.output_keyword_block(output, indent)
 
             elif self.next_chr_in(VALID_LETTERS):
                 output.append(self.word())
@@ -546,8 +606,11 @@ class PHPParser(Parser):  # pylint: disable=R0904
                 php_block = self.php_section()
 
                 output.append(php_block)
-                if self.position < len(self.text) - 1:
+                if self.position < len(self.text):
                     output.append('?>')
+                else:
+                    print ('eof!')
+                    print (self.text[self.position])
             else:
                 try:
                     output.append(self.text[self.position])

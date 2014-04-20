@@ -24,9 +24,11 @@
 - test suite
   - more tests
   - automatically finding new tests
-  - php-fail tests
+  - invalid php tests
   - internal function tests, as well as the current output tests
   - non-cleaning tests (make sure it doesn't change *anything*!)
+  - test for 'idempotent' stuff, you should be able to run it again
+    and again on the same file, without the output changing. (after the first time)
 - documentation
 - warnings about similar words & variables
 - including other files.

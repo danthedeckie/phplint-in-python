@@ -4,6 +4,7 @@
 
 TESTDIR='testfiles'
 OUTPUTDIR="$TESTDIR/output"
+SNIPPETS="$TESTDIR/snippets"
 OUTPUT_LINES=1
 
 # init:
@@ -51,6 +52,9 @@ test_clean() {
 if [[ -n "$1" ]]; then
     OUTPUT_LINES=3 test_clean "$1"
 else
+    echo "Testing snippets"
+    find "$SNIPPETS" -name '*.php'| xargs -t python "$SNIPPETS/test_snippets.py" || exit 2
+
     test_clean htmlblock_within_function.php
     test_clean literals_test.php
     test_clean function_args.php
