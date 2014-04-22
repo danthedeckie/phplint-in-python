@@ -33,7 +33,7 @@ VALID_LETTERS = 'abcdefghijklmnopqrstuvwxyz' \
 
 OPERATORS = ['.', '+', '-', '*', '/', '&', '^', '%', '|', '?', ':', '++', '--',
              '.=', '+=', '-=', '*=', '/=', '&&', '||', '==', '===', '=>', '->',
-             '::', '=', '!=', '<', '>', '<<', '>>']
+             '::', '=', '!=', '<', '>', '<<', '>>', '<=', '>=']
 
 KEYWORD_BLOCK_THINGS = ['for', 'while', 'foreach', 'if', 'do', 'switch',
                         'else if', 'elseif', 'else']
@@ -125,6 +125,14 @@ class Parser(object):
             if self.text[self.position:].startswith(text):
                 return text
         return False
+
+    def next_word_in(self, *words):
+        word = self.next_starts(*words)
+        if word and self.text[self.position + len(word)] not in VALID_LETTERS:
+            return word
+
+        return False
+            
 
     def _not_at_end(self):
         ''' used by parsing functions internally to continue one character
@@ -658,10 +666,10 @@ class PHPParser(Parser):  # pylint: disable=R0904
             elif self.next_chr_is('('):
                 output.append(self.expression())
 
-            elif self.next_starts(*KEYWORD_BLOCK_THINGS):
+            elif self.next_word_in(*KEYWORD_BLOCK_THINGS):
                 self.output_keyword_block(output, indent)
 
-            elif self.next_starts('function'):
+            elif self.next_word_in('function'):
                 self.output_function_block(output, indent)
 
             elif self.next_chr_in(VALID_LETTERS):
