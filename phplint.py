@@ -260,6 +260,11 @@ class PHPParser(Parser):  # pylint: disable=R0904
                 output.append(self.string_literal())
             elif self.next_chr_is('$'):
                 output.append(self.variable())
+            elif self.next_starts('/*'):
+                output.append(self.multiline_comment())
+            elif self.next_starts('//'):
+                output.append(self.inline_comment())
+                output.append(self.expect_space())
             elif self.next_chr_is(';'):
                 output.append(';')
                 output.append(self.expect_space())
@@ -268,6 +273,11 @@ class PHPParser(Parser):  # pylint: disable=R0904
                 output.append(self.expect_space())
             elif self.next_starts(*OPERATORS):
                 self.output_operator(output)
+            elif self.next_chr_in(' \t'):
+                if self.cleanup:
+                    while output[-1] in ' \t':
+                        output.pop()
+                output.append(' ')
             else:
                 output.append(self.text[self.position])
 
