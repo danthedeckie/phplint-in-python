@@ -357,9 +357,11 @@ class PHPParser(Parser):  # pylint: disable=R0904
 
         while self._not_at_end():
             if self.next_chr_is('\n'):
-                if not strip_newlines:
+                if not strip_newlines and self.cleanup:
                     output.append('\n' + self.current_indent + self.indentation)
                     # TODO: is that right???
+                else:
+                    output.append('\n')
 
             elif self.next_chr_is(' '):
                 if not output or not self.cleanup:
@@ -489,10 +491,19 @@ class PHPParser(Parser):  # pylint: disable=R0904
         if self.text[self.position] != '{':
             self.warn(keyword + ' without {braced} section!')
             self.step_back()
-            output.append('{')
-            output.append('\n' + self.current_indent + self.indentation)
-            output.append(self.statement())
-            output.append('\n' + self.current_indent + '}')
+            if self.cleanup:
+                output.append('{')
+                output.append('\n' + self.current_indent + self.indentation)
+                output.append(self.statement())
+                output.append('\n' + self.current_indent + '}')
+            else:
+                self.step_back()
+                output.append(self.statement())
+                self.step_forward()
+                if self.text[self.position] == '\n':
+                    output.append('\n')
+                else:
+                    self.step_back()
         else:
             self.output_curlyblock(output, indent)
 
@@ -513,7 +524,11 @@ class PHPParser(Parser):  # pylint: disable=R0904
 
             output.append(self.expression())
 
-            output.append(self.expect_space(strip_newlines=True))
+            if self.cleanup:
+                output.append(self.expect_space(strip_newlines=True))
+            self.step_forward()
+
+        if not self.cleanup:
             self.step_forward()
 
         self.output_curly_or_statement(output, indent, keyword)
