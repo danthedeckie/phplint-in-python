@@ -357,9 +357,11 @@ class PHPParser(Parser):  # pylint: disable=R0904
 
         while self._not_at_end():
             if self.next_chr_is('\n'):
-                if not strip_newlines and self.cleanup:
-                    output.append('\n' + self.current_indent + self.indentation)
-                    # TODO: is that right???
+                if self.cleanup:
+                    if not strip_newlines:
+                        output.append('\n' + self.current_indent + self.indentation)
+                    else:
+                        pass
                 else:
                     output.append('\n')
 
@@ -500,9 +502,12 @@ class PHPParser(Parser):  # pylint: disable=R0904
                 self.step_back()
                 output.append(self.statement())
                 self.step_forward()
-                if self.text[self.position] == '\n':
-                    output.append('\n')
-                else:
+                try:
+                    if self.text[self.position] == '\n':
+                        output.append('\n')
+                    else:
+                        self.step_back()
+                except IndexError:
                     self.step_back()
         else:
             self.output_curlyblock(output, indent)
@@ -535,10 +540,12 @@ class PHPParser(Parser):  # pylint: disable=R0904
 
         if keyword in ('if', 'else if', 'elseif'):
             with self.rollback(output):
+                self.warn(output)
                 output.append(self.expect_space(strip_newlines=True))
                 self.step_forward()
 
                 next_key = self.next_starts('elseif', 'else')
+                self.warn(output)
                 if next_key:
                     self.output_keyword_block(output, indent)
                 else:
