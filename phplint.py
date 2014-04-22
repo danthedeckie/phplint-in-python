@@ -263,6 +263,7 @@ class PHPParser(Parser):  # pylint: disable=R0904
             else:
                 output.append(self.text[self.position])
 
+        self.warn(output)
         raise UnexpectedEndOfFile('end of file inside (expression)')
 
     def variable(self):
@@ -540,12 +541,10 @@ class PHPParser(Parser):  # pylint: disable=R0904
 
         if keyword in ('if', 'else if', 'elseif'):
             with self.rollback(output):
-                self.warn(output)
                 output.append(self.expect_space(strip_newlines=True))
                 self.step_forward()
 
                 next_key = self.next_starts('elseif', 'else')
-                self.warn(output)
                 if next_key:
                     self.output_keyword_block(output, indent)
                 else:
@@ -568,9 +567,32 @@ class PHPParser(Parser):  # pylint: disable=R0904
             self.step_forward()
         else:
             # named function
-            output.append(self.word)
+            output.append(self.word())
             # TODO: now can be followed by 'using', or block....
             output.append(self.expect_space(strip_newlines=True))
+            if self.cleanup:
+                output.pop() # and remove that space...
+
+            self.step_forward()
+            output.append(self.expression())
+            self.step_back()
+
+            if self.cleanup:
+                output.append(self.expect_newline())
+
+        while self._not_at_end():
+            if self.next_chr_is('{'):
+                block_output = []
+                self.output_curlyblock(block_output, indent)
+                break
+
+            else:
+                if not self.cleanup:
+                    if self.next_chr_in('\n\t '):
+                        output.append(self.text[self.position])
+
+        output.append(''.join(block_output))
+
 
     ####################################
     # the main parser functions:
@@ -638,6 +660,9 @@ class PHPParser(Parser):  # pylint: disable=R0904
 
             elif self.next_starts(*KEYWORD_BLOCK_THINGS):
                 self.output_keyword_block(output, indent)
+
+            elif self.next_starts('function'):
+                self.output_function_block(output, indent)
 
             elif self.next_chr_in(VALID_LETTERS):
                 output.append(self.word())

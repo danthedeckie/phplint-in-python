@@ -72,5 +72,6 @@ for testcase in tests:
     compare(cleaned, expected, 'clean')
 
     repeated = parser.parse(cleaned)
+    repeated = parser.parse(before)
 
-    compare(cleaned, repeated, 'second time cleaning')
+    compare(repeated, expected, 'second time cleaning')

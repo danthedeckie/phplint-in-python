@@ -7,7 +7,8 @@ function x(){
 ?>
 ----
 <?php
-function x() {
+function x()
+{
     return 42;
 }
 ?>
@@ -21,7 +22,8 @@ function x($y){
 ?>
 ----
 <?php
-function x($y) {
+function x($y)
+{
     return 42;
 }
 ?>
@@ -35,7 +37,24 @@ function x($y,$z){
 ?>
 ----
 <?php
-function x($y, $z) {
+function x($y, $z)
+{
     return 42;
+}
+?>
+====
+function with 'correct' spacing
+----
+<?php
+function x()
+{
+    return 99;
+}
+?>
+----
+<?php
+function x()
+{
+    return 99;
 }
 ?>

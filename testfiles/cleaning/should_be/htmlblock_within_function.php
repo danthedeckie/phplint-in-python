@@ -1,6 +1,7 @@
 <?php
 
-    function dostuff($x) {
+    function dostuff($x)
+    {
         ?>effectively echo<?php echo $x; ?> things <?php
     }
 

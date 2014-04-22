@@ -3,7 +3,8 @@
     /* this is a comment */
     ?><!doctype html><?php // inline!
 
-    function x($y) {
+    function x($y)
+    {
         $thing = $y * $y;
         printf('text %s', "more.");
         ;

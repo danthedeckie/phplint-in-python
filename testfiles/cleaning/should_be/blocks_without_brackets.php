@@ -8,7 +8,8 @@ while ($up != "down") {
     printf("I can fly!");
 }
 
-function yellow() {
+function yellow()
+{
     if (11 == 12) {
         return "passionfruit";
     }

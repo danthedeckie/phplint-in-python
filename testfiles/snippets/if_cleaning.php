@@ -82,7 +82,8 @@ function x () {
 ?>
 ----
 <?php
-function x () {
+function x()
+{
     if ($t < 21) {
         echo "a";
     }
